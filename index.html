@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A premium, state-of-the-art Weather Prediction and Monitoring System combining real-time IoT simulation, barometric Zambretti algorithms, client-side Machine Learning, role-based dashboards, and severe weather alerting.">
+  <title>AETHER - Weather Prediction & Monitoring System</title>
+  <!-- Main Glassmorphic Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- Weather Effect Overlay Canvas (Rain/Snow particle system) -->
+  <canvas id="weatherEffectCanvas" class="weather-effect-overlay"></canvas>
+
+  <div class="container">
+    
+    <!-- 1. SYSTEM HEADER -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-logo">Æ</div>
+        <div class="brand-title-wrap">
+          <h1>AETHER</h1>
+          <div class="brand-subtitle">Weather Prediction & IoT Telemetry System</div>
+        </div>
+      </div>
+      
+      <div class="control-bar">
+        <!-- Dashboard Role Switcher Tabs -->
+        <div class="role-tabs" id="roleTabs">
+          <button class="role-tab active" data-role="general">Daily User</button>
+          <button class="role-tab" data-role="farmer">Smart Farmer</button>
+          <button class="role-tab" data-role="scientist">Researcher</button>
+          <button class="role-tab" data-role="disaster">Disaster Coordinator</button>
+        </div>
+
+        <!-- API Key Drawer Toggle -->
+        <button class="mode-toggle-btn" id="apiToggleBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          API Config
+        </button>
+
+        <!-- Simulated stream ticker status toggle -->
+        <button class="mode-toggle-btn" id="streamToggleBtn">
+          <span class="pulse-indicator" id="streamPulse" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#6b7280; transition:all 0.3s;"></span>
+          <span id="streamStatusText">Static Mode</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 2. API CREDENTIALS DRAWER -->
+    <div class="api-drawer" id="apiDrawer">
+      <div style="flex: 1;">
+        <h3 style="font-size: 1rem; margin-bottom: 0.25rem;">Live Public Weather Integration</h3>
+        <p style="font-size: 0.8rem; color: var(--text-secondary);">Enter a city and OpenWeatherMap API Key to overlay physical data over the simulator.</p>
+      </div>
+      <div class="api-inputs">
+        <input type="text" id="apiCityInput" class="input-field" placeholder="E.g. London, Tokyo">
+        <input type="password" id="apiKeyInput" class="input-field" placeholder="Enter OpenWeatherMap API Key">
+        <button class="btn-primary" id="saveApiBtn">Fetch Live Data</button>
+        <button class="btn-secondary" id="clearApiBtn">Reset to Simulator</button>
+      </div>
+    </div>
+
+    <!-- 3. EMERGENCY ALERTS PULSING BANNER -->
+    <div class="emergency-alert-banner" id="emergencyBanner">
+      <div class="alert-message-wrap">
+        <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        <div>
+          <div class="alert-title" id="alertTitle">Severe Storm Warning</div>
+          <div class="alert-desc" id="alertDesc">Extreme pressure falls detected. Secure structures, clear drains, and monitor immediate radar.</div>
+        </div>
+      </div>
+      <div style="display:flex; gap: 0.5rem; align-items:center;">
+        <button class="mode-toggle-btn" id="sirenSoundBtn" style="border-color:var(--color-danger); color:var(--color-danger); background:rgba(239,68,68,0.15);">
+          🔊 Mute Alert Tone
+        </button>
+        <button class="mode-toggle-btn" id="dismissAlertBtn" style="border-color:var(--text-muted); color:var(--text-secondary);">
+          Dismiss
+        </button>
+      </div>
+    </div>
+
+    <!-- 4. CORE DASHBOARD GRID -->
+    <main class="dashboard-grid">
+      
+      <!-- LEFT ROW: TELEMETRY INPUTS / VIRTUAL IoT CONTROLS -->
+      <aside class="iot-control-panel">
+        <div class="section-header">
+          <h2>Virtual IoT Station</h2>
+          <span class="badge" id="stationModeBadge">SIMULATOR ACTIVE</span>
+        </div>
+
+        <!-- 5 PRESET SCENARIO SHORTCUTS -->
+        <div class="preset-container">
+          <div class="preset-title">Sensor Profiles</div>
+          <div class="preset-grid">
+            <button class="preset-btn active" data-preset="clear_summer">☀️ Summer</button>
+            <button class="preset-btn" data-preset="approaching_typhoon">🌀 Typhoon</button>
+            <button class="preset-btn" data-preset="winter_blizzard">❄️ Blizzard</button>
+            <button class="preset-btn" data-preset="humid_monsoon">⛈️ Monsoon</button>
+            <button class="preset-btn" style="grid-column: span 2;" data-preset="scorching_drought">🔥 Scorching Drought</button>
+          </div>
+        </div>
+
+        <!-- IoT TELEMETRY SLIDERS -->
+        <div class="sensor-sliders">
+          
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">🌡️ Air Temperature</span>
+              <span class="slider-value" id="tempVal">20.0 °C</span>
+            </div>
+            <input type="range" id="tempSlider" class="range-slider" min="-25" max="55" step="0.5" value="20.0">
+            <div class="slider-limits">
+              <span>-25°C</span>
+              <span>55°C</span>
+            </div>
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">💧 Relative Humidity</span>
+              <span class="slider-value" id="humidityVal">60%</span>
+            </div>
+            <input type="range" id="humiditySlider" class="range-slider" min="5" max="100" step="1" value="60">
+            <div class="slider-limits">
+              <span>5%</span>
+              <span>100%</span>
+            </div>
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">🎈 Atmospheric Pressure</span>
+              <span class="slider-value" id="pressureVal">1013.2 hPa</span>
+            </div>
+            <input type="range" id="pressureSlider" class="range-slider" min="950" max="1050" step="0.1" value="1013.2">
+            <div class="slider-limits">
+              <span>950 hPa</span>
+              <span>1050 hPa</span>
+            </div>
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">💨 Wind Velocity</span>
+              <span class="slider-value" id="windSpeedVal">15.0 km/h</span>
+            </div>
+            <input type="range" id="windSpeedSlider" class="range-slider" min="0" max="150" step="0.5" value="15">
+            <div class="slider-limits">
+              <span>0 km/h</span>
+              <span>150 km/h</span>
+            </div>
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">🌧️ Rainfall Rate</span>
+              <span class="slider-value" id="rainfallVal">0.0 mm/h</span>
+            </div>
+            <input type="range" id="rainfallSlider" class="range-slider" min="0" max="60" step="0.1" value="0">
+            <div class="slider-limits">
+              <span>0.0 mm</span>
+              <span>60.0 mm</span>
+            </div>
+          </div>
+
+          <!-- Wind direction compass selection dropdown -->
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label" style="font-size:0.85rem; font-weight:500;">🧭 Wind Direction</span>
+            </div>
+            <select id="windDirSelect" class="input-field" style="width:100%; cursor:pointer;">
+              <option value="N">North (N)</option>
+              <option value="NNE">North-North-East (NNE)</option>
+              <option value="NE">North-East (NE)</option>
+              <option value="ENE">East-North-East (ENE)</option>
+              <option value="E">East (E)</option>
+              <option value="ESE">East-South-East (ESE)</option>
+              <option value="SE">South-East (SE)</option>
+              <option value="SSE">South-South-East (SSE)</option>
+              <option value="S">South (S)</option>
+              <option value="SSW">South-South-West (SSW)</option>
+              <option value="SW">South-West (SW)</option>
+              <option value="WSW">West-South-West (WSW)</option>
+              <option value="W" selected>West (W)</option>
+              <option value="WNW">West-North-West (WNW)</option>
+              <option value="NW">North-West (NW)</option>
+              <option value="NNW">North-North-West (NNW)</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="station-config">
+          <div class="toggle-group">
+            <span>Simulate Sensor Drift (Stream)</span>
+            <label class="switch">
+              <input type="checkbox" id="streamDriftToggle">
+              <span class="slider-switch"></span>
+            </label>
+          </div>
+          <div class="toggle-group">
+            <span>Simulate Sensor Noise</span>
+            <label class="switch">
+              <input type="checkbox" id="sensorNoiseToggle" checked>
+              <span class="slider-switch"></span>
+            </label>
+          </div>
+          <button class="btn-primary" id="manualLogBtn" style="width:100%; margin-top:0.5rem;">📸 Force Archival Log</button>
+        </div>
+      </aside>
+
+      <!-- RIGHT ROW: DYNAMIC PORTPERSPECTIVES -->
+      <section class="role-viewport" id="roleViewport">
+        
+        <!-- ========================================== -->
+        <!-- 1. DAILY / GENERAL USER WORKSPACE -->
+        <!-- ========================================== -->
+        <div class="role-panel active" id="panel-general">
+          <div class="glass-grid">
+            
+            <!-- Hero Forecast Card -->
+            <div class="glass-card forecast-hero-card">
+              <div class="hero-main">
+                <span class="badge">Dynamic Forecast</span>
+                <div class="hero-condition-wrap">
+                  <div class="hero-condition-icon" id="heroWeatherIcon">☀️</div>
+                  <div class="hero-temp-details">
+                    <h3 id="heroTempDisplay">30.5°C</h3>
+                    <div class="hero-desc" id="heroDescDisplay">Sunny & Dry</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="hero-predictions-side">
+                <div class="prediction-row">
+                  <span>ML Prediction</span>
+                  <span id="generalPredML" style="color:var(--color-sunny);">Sunny</span>
+                </div>
+                <div class="prediction-row">
+                  <span>Zambretti Forecast</span>
+                  <span id="generalPredZambretti">Fair Weather</span>
+                </div>
+                <div class="prediction-row">
+                  <span>Pressure Trend</span>
+                  <span id="generalPressureTrend" style="color:var(--color-success);">Rising</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Thermal Comfort Card -->
+            <div class="glass-card">
+              <div class="card-title-group">
+                <span class="card-title">Sensory Indices</span>
+                <span class="card-icon">🌡️</span>
+              </div>
+              <div class="card-value" id="generalFeelsLike">31.0°C</div>
+              <div class="card-subtitle">Apparent physiological comfort:</div>
+              <div class="comfort-meter-bg">
+                <div class="comfort-meter-fill" id="comfortMeterFill"></div>
+              </div>
+              <div class="prediction-row" style="margin-top:0.75rem; border:none; padding:0;">
+                <span id="generalComfortLabel">Extremely comfortable</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Secondary General Indicators Grid -->
+          <div class="glass-grid">
+            
+            <!-- Outdoor Activity and Apparel card -->
+            <div class="glass-card" style="grid-column: span 2;">
+              <h3 style="font-size:1.1rem; margin-bottom: 0.75rem;">Outdoor Activity & apparel wizard</h3>
+              <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom: 1rem;">Evaluates physical parameters to recommend optimal clothing and compute a general outdoor score.</p>
+              
+              <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap: 1.5rem; align-items:center;">
+                <div style="text-align:center; padding: 1rem; background:rgba(0,0,0,0.2); border-radius:var(--radius-sm); border: 1px solid var(--border-glass);">
+                  <div style="font-size:0.7rem; text-transform:uppercase; color:var(--text-secondary);">Activity Index</div>
+                  <div style="font-size:2.5rem; font-family:var(--font-display); font-weight:800; color:var(--secondary);" id="activityScoreVal">98%</div>
+                  <div style="font-size:0.75rem; font-weight:600; color:var(--text-primary);" id="activityLabelVal">Perfect Day</div>
+                </div>
+                
+                <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                  <div class="apparel-box">
+                    <div class="apparel-icon-wrap" id="apparelIconWrap">🕶️</div>
+                    <div class="apparel-text">
+                      <div>Recommended Apparel:</div>
+                      <div class="apparel-val" id="apparelValue">T-Shirt, Sunglasses, Cap</div>
+                    </div>
+                  </div>
+                  <div class="apparel-box" style="margin:0;">
+                    <div class="apparel-icon-wrap" id="activityIconWrap" style="background:rgba(16,185,129,0.1); color:var(--secondary);">🚴</div>
+                    <div class="apparel-text">
+                      <div>Outdoor Recommendation:</div>
+                      <div class="apparel-val" id="activityRecommendation">Ideal for hiking, running, or cycling</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Wind direction dial card -->
+            <div class="glass-card wind-vane-card">
+              <div class="card-title-group">
+                <span class="card-title">Wind Direction Dial</span>
+                <span class="card-icon">🧭</span>
+              </div>
+              <div class="wind-vane-container">
+                <div class="wind-vane">
+                  <div class="vane-arrow" id="windVaneArrow"></div>
+                  <div class="vane-label vane-n">N</div>
+                  <div class="vane-label vane-e">E</div>
+                  <div class="vane-label vane-s">S</div>
+                  <div class="vane-label vane-w">W</div>
+                </div>
+                <div style="font-size:0.9rem; font-weight:600;" id="windDirectionLabel">Wind from West (W)</div>
+                <div style="font-size:0.75rem; color:var(--text-secondary);" id="windSpeedLabel">Speed: 15.0 km/h</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 2. SMART FARMER WORKSPACE -->
+        <!-- ========================================== -->
+        <div class="role-panel" id="panel-farmer">
+          <div class="glass-grid">
+            
+            <!-- Evapotranspiration ET0 Card -->
+            <div class="glass-card agri-card">
+              <div class="card-title-group">
+                <span class="card-title">Water Loss Index (ET0)</span>
+                <span class="card-icon">🌾</span>
+              </div>
+              <div class="card-value" id="farmerEtVal">4.28 mm</div>
+              <div class="card-subtitle">Evapotranspiration rate per day</div>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.75rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:0.5rem;">
+                Estimated water depth evaporated and transpired by active reference crops.
+              </p>
+            </div>
+
+            <!-- Frost Risk Card -->
+            <div class="glass-card agri-card" id="farmerFrostCard">
+              <div class="card-title-group">
+                <span class="card-title">Agricultural Frost Risk</span>
+                <span class="card-icon">❄️</span>
+              </div>
+              <div class="card-value" id="farmerFrostVal">No Risk</div>
+              <div class="card-subtitle" id="farmerFrostSubtitle">Temp well above freezing</div>
+              <div class="comfort-meter-bg" style="margin-top:0.75rem;">
+                <div class="comfort-meter-fill" id="frostRiskFill" style="width: 5%; background: var(--secondary);"></div>
+              </div>
+            </div>
+
+            <!-- Dew Point card -->
+            <div class="glass-card agri-card">
+              <div class="card-title-group">
+                <span class="card-title">Atmospheric Dew Point</span>
+                <span class="card-icon">💧</span>
+              </div>
+              <div class="card-value" id="farmerDewPoint">16.2°C</div>
+              <div class="card-subtitle">Saturated sweat temperature</div>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.75rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:0.5rem;">
+                The physical temperature to which air must be cooled to become completely saturated.
+              </p>
+            </div>
+
+          </div>
+
+          <div class="glass-card">
+            <h3 style="font-size:1.1rem; margin-bottom: 0.5rem; color:var(--secondary);">🚜 Smart Irrigation & Crop Guidance Wizard</h3>
+            <p style="font-size:0.85rem; color:var(--text-secondary);">Calculates active crop stress based on water loss index, temperature extremes, and immediate rain accumulation.</p>
+            
+            <div class="recommendation-bubble" id="agriAdvisorBox">
+              <div style="font-size:1.5rem;">💡</div>
+              <div>
+                <strong style="display:block; margin-bottom:0.25rem; font-size:0.9rem;" id="agriAdvisorTitle">Ideal Conditions</strong>
+                <span id="agriAdvisorDesc">Water evapotranspiration rate is moderate. Soil humidity levels are optimal. No immediate crop shielding or extra irrigation cycles are necessary. Standard maintenance scheduling holds.</span>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.25rem;">
+              <div style="background:rgba(0,0,0,0.25); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.75rem;">
+                <div style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase;">Daily Growing Degree Days (GDD)</div>
+                <div style="font-size:1.25rem; font-weight:700; color:white; font-family:var(--font-display); margin-top:0.25rem;" id="agriGddVal">20.5</div>
+                <div style="font-size:0.65rem; color:var(--text-muted); margin-top:0.15rem;">Base temperature threshold: 10°C</div>
+              </div>
+
+              <div style="background:rgba(0,0,0,0.25); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.75rem;">
+                <div style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase;">Relative Transpiration Index</div>
+                <div style="font-size:1.25rem; font-weight:700; color:var(--secondary); font-family:var(--font-display); margin-top:0.25rem;" id="agriTranspirationVal">Optimal</div>
+                <div style="font-size:0.65rem; color:var(--text-muted); margin-top:0.15rem;">Crop vapor pressure gradient safe</div>
+              </div>
+
+              <div style="background:rgba(0,0,0,0.25); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.75rem;">
+                <div style="font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase;">Rain Hydration Balance</div>
+                <div style="font-size:1.25rem; font-weight:700; color:#3b82f6; font-family:var(--font-display); margin-top:0.25rem;" id="agriRainBalanceVal">0.0 mm</div>
+                <div style="font-size:0.65rem; color:var(--text-muted); margin-top:0.15rem;">Hourly moisture balance input</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 3. RESEARCHER / SCIENTIST WORKSPACE -->
+        <!-- ========================================== -->
+        <div class="role-panel" id="panel-scientist">
+          <div class="scientist-grid">
+            
+            <!-- Left: Telemetry Log list table -->
+            <div class="glass-card" style="display:flex; flex-direction:column; min-height:420px;">
+              <div class="card-title-group">
+                <span class="card-title" style="font-size:0.95rem; color:white;">Raw Telemetry Archives</span>
+                <span class="badge" id="scientistLogCount">72 readings</span>
+              </div>
+              
+              <div class="science-table-wrap" style="flex:1; margin:0.75rem 0;">
+                <table class="science-table">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Temp (°C)</th>
+                      <th>Hum (%)</th>
+                      <th>Press (hPa)</th>
+                      <th>Wind (km/h)</th>
+                      <th>Rain (mm)</th>
+                      <th>True Label</th>
+                      <th>ML Pred</th>
+                    </tr>
+                  </thead>
+                  <tbody id="scienceLogsBody">
+                    <!-- Loaded dynamically via JS -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-glass); padding-top:0.75rem;">
+                <div style="font-size:0.75rem; color:var(--text-secondary);">Archive database size: <span id="storageBytesVal">12.5 KB</span></div>
+                <div style="display:flex; gap:0.5rem;">
+                  <button class="btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.75rem;" id="exportCsvBtn">Export CSV</button>
+                  <button class="btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.75rem;" id="exportJsonBtn">Export JSON</button>
+                  <button class="btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.75rem; cursor:pointer; position:relative; overflow:hidden;">
+                    Import JSON
+                    <input type="file" id="importJsonInput" accept=".json" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+                  </button>
+                  <button class="btn-secondary" style="padding:0.4rem 0.8rem; font-size:0.75rem; border-color:var(--color-danger); color:var(--color-danger); background:rgba(239,68,68,0.05);" id="clearLogsBtn">Wipe Data</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Dynamic Machine Learning training widget -->
+            <div class="glass-card ml-panel">
+              <h3 style="font-size:1.1rem; color:var(--primary);">🔬 Client-Side ML Model controls</h3>
+              <p style="font-size:0.8rem; color:var(--text-secondary);">
+                Train a custom <strong>Decision Tree Classifier</strong> in your browser based on recorded weather conditions.
+              </p>
+              
+              <div style="border: 1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.75rem; background:rgba(0,0,0,0.25);">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; margin-bottom:0.5rem;">
+                  <span>Maximum Tree Depth Constraint:</span>
+                  <span id="maxDepthLabel" style="font-weight:700; color:var(--primary);">4</span>
+                </div>
+                <input type="range" id="maxDepthSlider" class="range-slider" min="2" max="6" step="1" value="4">
+                <div style="font-size:0.65rem; color:var(--text-muted); margin-top:0.25rem;">
+                  Deeper trees represent more complex logic but can cause high variance overfitting.
+                </div>
+              </div>
+
+              <div>
+                <button class="btn-primary" style="width:100%;" id="trainMlBtn">Retrain ML Model</button>
+                <div style="font-size:0.75rem; text-align:center; color:var(--text-secondary); margin-top:0.25rem;">
+                  Model updates instantly in memory.
+                </div>
+              </div>
+
+              <!-- Accuracy Metrics readout -->
+              <div>
+                <div class="preset-title" style="margin-bottom:0.25rem;">Model Metrics</div>
+                <div class="ml-metrics-grid">
+                  <div class="ml-metric-box">
+                    <div class="ml-metric-lbl">Accuracy</div>
+                    <div class="ml-metric-val" id="mlAccuracy">94.2%</div>
+                  </div>
+                  <div class="ml-metric-box">
+                    <div class="ml-metric-lbl">Precision</div>
+                    <div class="ml-metric-val" id="mlPrecision">93.5%</div>
+                  </div>
+                  <div class="ml-metric-box">
+                    <div class="ml-metric-lbl">Recall</div>
+                    <div class="ml-metric-val" id="mlRecall">92.8%</div>
+                  </div>
+                </div>
+                <div style="font-size:0.7rem; color:var(--text-muted); text-align:center;">
+                  Trained dynamically on <span id="mlTrainedSize">72</span> historical log records.
+                </div>
+              </div>
+
+              <!-- Matrix rendering layout -->
+              <div>
+                <div class="preset-title" style="margin-bottom:0.25rem;">Confusion Matrix (True vs Pred)</div>
+                <div class="confusion-matrix" id="mlConfusionMatrixContainer">
+                  <!-- Generated via JS -->
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 4. DISASTER MANAGEMENT COORDINATOR WORKSPACE -->
+        <!-- ========================================== -->
+        <div class="role-panel" id="panel-disaster">
+          <div class="disaster-console">
+            
+            <!-- Severe Warnings broadcast controls -->
+            <div class="glass-card disaster-alert-card">
+              <h3 style="font-size:1.1rem; color:var(--color-danger);">🚨 Emergency Alert Control Room</h3>
+              <p style="font-size:0.85rem; color:var(--text-secondary);">Simulate an active threat event broadcast. Triggers sirens and displays pulsing red threat alerts immediately on all dashboards.</p>
+              
+              <div style="display:flex; flex-direction:column; gap:0.75rem; margin-top:1rem;">
+                <div class="slider-group">
+                  <span style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase;">Select Threat Scenario</span>
+                  <select id="disasterTypeSelect" class="input-field" style="width:100%;">
+                    <option value="storm">🌀 Severe Storm / Hurricane Front</option>
+                    <option value="flood">🌊 Flash Flood warning</option>
+                    <option value="heat">🔥 Extreme Danger Heatwave</option>
+                    <option value="freeze">❄️ Severe Crop-Killing Frost</option>
+                    <option value="wind">💨 High-Velocity Wind Gale</option>
+                  </select>
+                </div>
+
+                <div class="slider-group">
+                  <span style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase;">Custom Alarm Warning Message</span>
+                  <input type="text" id="disasterCustomMsg" class="input-field" placeholder="E.g. Evacuate low zones immediately..." value="Emergency: Severe storm front approaching. Secure structures and seek immediate shelter.">
+                </div>
+
+                <div class="broadcast-actions">
+                  <button class="btn-primary" style="flex:1.5; background:var(--color-danger);" id="disasterBroadcastBtn">Broadcast Threat Alert</button>
+                  <button class="btn-secondary" style="flex:1;" id="disasterClearBtn">Cancel Alerts</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Operational Evacuation Checklist and Emergency Hub -->
+            <div class="glass-card">
+              <div class="card-title-group">
+                <span class="card-title" style="font-size:0.95rem; color:white;">Rescue Operations Command</span>
+                <span class="badge" style="background:rgba(6,182,212,0.15); border-color:rgba(6,182,212,0.3); color:#22d3ee;">STATUS: READINESS</span>
+              </div>
+              
+              <p style="font-size:0.825rem; color:var(--text-secondary); margin-top:0.25rem;">Mandatory protocols for disaster management authorities during extreme environmental readings:</p>
+              
+              <div class="disaster-checklist">
+                <label class="checklist-item">
+                  <input type="checkbox" checked>
+                  <span>Coordinate backup emergency energy generators</span>
+                </label>
+                <label class="checklist-item">
+                  <input type="checkbox">
+                  <span>Establish contact channels with civil authority nets</span>
+                </label>
+                <label class="checklist-item">
+                  <input type="checkbox">
+                  <span>Pre-deploy emergency rescue inflatable boats to floodzones</span>
+                </label>
+                <label class="checklist-item">
+                  <input type="checkbox">
+                  <span>Instruct agricultural agencies to notify vulnerable crop farmers</span>
+                </label>
+                <label class="checklist-item">
+                  <input type="checkbox">
+                  <span>Initiate public transport speed restrictions for wind/gale safety</span>
+                </label>
+              </div>
+
+              <!-- Quick details readout -->
+              <div style="background:rgba(0,0,0,0.2); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.75rem; margin-top:1rem; font-size:0.75rem; display:flex; flex-direction:column; gap:0.25rem;">
+                <div>📞 Disaster Emergency Net: <strong>+1 (800) 555-SAFE</strong></div>
+                <div>📡 RF Backup Band: <strong>VHF Channel 16 (156.8 MHz)</strong></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- 5. HISTORICAL ANALYTICS AND TREND CHARTS -->
+    <section class="charts-section-panel">
+      <div class="section-header">
+        <div>
+          <h2>Historical Analytics & trend tracking</h2>
+          <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:0.25rem;">Real-time continuous logging from weather station physical models.</p>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <!-- Live Line Chart -->
+        <div class="chart-wrapper">
+          <canvas id="historicalChart"></canvas>
+        </div>
+
+        <!-- Telemetry Statistics Aggregate card -->
+        <div class="glass-card statistics-card">
+          <div class="card-title-group">
+            <span class="card-title" style="color:white; font-size:0.95rem;">Historical Statistical aggregate</span>
+            <span class="badge badge-sim">3 Day Statistics</span>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:0.25rem;">
+            
+            <div class="stat-row">
+              <span class="stat-label">🌡️ Temperature Ranges</span>
+              <div class="stat-values">
+                <span class="stat-val-min" id="statTempMin">-2.5°</span>
+                <span class="stat-val-avg" id="statTempAvg">20.5°</span>
+                <span class="stat-val-max" id="statTempMax">42.2°</span>
+              </div>
+            </div>
+
+            <div class="stat-row">
+              <span class="stat-label">💧 Relative Humidity</span>
+              <div class="stat-values">
+                <span class="stat-val-min" id="statHumMin">14%</span>
+                <span class="stat-val-avg" id="statHumAvg">56%</span>
+                <span class="stat-val-max" id="statHumMax">98%</span>
+              </div>
+            </div>
+
+            <div class="stat-row">
+              <span class="stat-label">🎈 Atmospheric Pressure</span>
+              <div class="stat-values">
+                <span class="stat-val-min" id="statPressMin">978 hPa</span>
+                <span class="stat-val-avg" id="statPressAvg">1012 hPa</span>
+                <span class="stat-val-max" id="statPressMax">1019 hPa</span>
+              </div>
+            </div>
+
+            <div class="stat-row">
+              <span class="stat-label">💨 Wind Velocity Ranges</span>
+              <div class="stat-values">
+                <span class="stat-val-min" id="statWindMin">0 kmh</span>
+                <span class="stat-val-avg" id="statWindAvg">14 kmh</span>
+                <span class="stat-val-max" id="statWindMax">78 kmh</span>
+              </div>
+            </div>
+
+            <div class="stat-row" style="border:none;">
+              <span class="stat-label">🌧️ Rainfall Accumulation</span>
+              <div class="stat-values">
+                <span class="stat-val-avg" id="statRainTotal" style="color:var(--color-rainy); font-weight:700;">42.8 mm</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Extra researcher metrics helper -->
+          <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:var(--radius-sm); padding:0.6rem; font-size:0.75rem; text-align:center; color:var(--text-secondary); margin-top:auto;">
+            Standard Deviation (σ) Temp: <strong id="statTempStd" style="color:var(--primary);">±8.2°C</strong> | Press: <strong id="statPressStd" style="color:var(--secondary);">±2.4 hPa</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Loading scripts in logical order -->
+  <script src="js/prediction.js"></script>
+  <script src="js/simulator.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
