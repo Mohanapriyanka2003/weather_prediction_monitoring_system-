@@ -1,7 +1,0 @@
-streamlit
-pdfplumber
-pytesseract
-Pillow
-transformers
-sentence-transformers
-torch
